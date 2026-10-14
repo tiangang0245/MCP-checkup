@@ -5,7 +5,7 @@
 
 现有 MCP 安全工具几乎都是**企业网关 / 仓库扫描**视角。但真实世界里量最大、防护最薄的一环是：个人开发者笔记本上那几个 `mcp.json`。本工具从这一端切入。
 
-## 现在能做什么（v0.2）
+## 现在能做什么（v0.3）
 
 ```bash
 python -m mcp_checkup list                      # 扫描本机所有已知客户端配置
@@ -13,15 +13,18 @@ python -m mcp_checkup scan                      # 对同一批配置跑规则体
 python -m mcp_checkup scan -v                   # 附每条规则的说明行
 python -m mcp_checkup scan --project F:\my-repo # 追加项目级 .mcp.json / .cursor/mcp.json
 python -m mcp_checkup scan --config path/x.json # 指定任意配置文件
+python -m mcp_checkup scan --out report.md      # 出可分享的 Markdown 报告（.json 亦可）
 python -m mcp_checkup scan --json               # 机器可读输出（不含密钥值）
 python -m mcp_checkup scan --fail-on high       # 出现 high 就退出码 1（可进 CI）
 ```
 
+报告长什么样：[docs/示例报告.md](docs/示例报告.md)（对 `examples/` 两个样例生成，含总览结论、按 server 分组的明细、扫描到的 server 附录，以及**"本报告查不出什么"**一节——边界声明比结论本身更重要）。
+
 `scan` 输出示例（对 `examples/fixture_suspicious.mcp.json`）：
 
 ```
-mcp-checkup v0.2 - 规则体检（28 条规则 · 离线 · 只读）
-发现 4 high / 1 medium
+mcp-checkup v0.3 - 规则体检（28 条规则 · 离线 · 只读）
+发现 4 high / 1 medium · 结论：存在高危项，建议先清
 风险分 44（high=10 medium=4 low=1）
 
   filesystem-utils  (examples\fixture_suspicious.mcp.json)
@@ -54,7 +57,7 @@ mcp-checkup v0.2 - 规则体检（28 条规则 · 离线 · 只读）
 |---|---|---|
 | v0.1 | 配置发现 + 归一化视图 + 密钥脱敏 | ✅ |
 | v0.2 | 规则引擎：配置卫生 + 中·英工具描述投毒检测（28 条） | ✅ 本仓库 |
-| v0.3 | 报告层：终端分级 + Markdown / JSON 报告落盘 | 计划 |
+| v0.3 | 报告层：Markdown / JSON 报告落盘 + 结论与边界声明 | ✅ 本仓库 |
 | v0.4 | rug-pull 审查：工具定义 JCS 哈希固化 + 两次快照 diff | 计划 |
 | v0.5 | 动态检测：本地靶场 + eval / exec / 反射行为探测 | 计划 |
 
@@ -84,18 +87,19 @@ mcp-checkup v0.2 - 规则体检（28 条规则 · 离线 · 只读）
 
 ```
 mcp_checkup/     clients.py（已知路径）· config_loader.py（归一化+脱敏）
-                 rules.py（引擎+内置语义规则）· known_names.py（官方包清单）· cli.py
+                 rules.py（引擎+内置语义规则）· known_names.py（官方包清单）
+                 report.py（Markdown / JSON 报告）· cli.py
 rules/           poisoning_zh.json · poisoning_en.json · structural.json   ← 加规则改这里
-tests/           unittest（stdlib，无需 pytest）：加载/脱敏 + 检出 + 零误报
+tests/           unittest（stdlib，无需 pytest）：加载/脱敏 + 检出 + 零误报 + 报告
 examples/        clean.mcp.json · fixture_suspicious.mcp.json（惰性样例，载荷已占位符化）
-docs/            威胁模型.md
+docs/            威胁模型.md · 示例报告.md
 SECURITY.md      红线与协调披露
 ```
 
 ## 跑测试
 
 ```bash
-PYTHONPATH=. python -m unittest discover -s tests -v      # 21 个用例
+PYTHONPATH=. python -m unittest discover -s tests -v      # 26 个用例
 ```
 
 其中 `FalsePositiveBarTest` 专门锁"干净配置零告警"——加新规则时若把 `examples/clean.mcp.json` 打脏，测试会红。

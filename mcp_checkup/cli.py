@@ -6,9 +6,11 @@ import argparse
 import json
 import sys
 
+from . import __version__
 from .clients import CLIENTS
 from .config_loader import ConfigFile, McpServer, discover, redact
 from .rules import SEVERITY_ORDER, evaluate, load_rules, score
+from .report import build as build_report, to_json, to_markdown, write as write_report
 
 SEV_TAG = {"high": "HIGH  ", "medium": "MEDIUM", "low": "LOW   ", "info": "INFO  "}
 
@@ -80,28 +82,26 @@ def cmd_list(args: argparse.Namespace) -> int:
 def cmd_scan(args: argparse.Namespace) -> int:
     files = discover(project=args.project, client=args.client, extra=tuple(args.config or ()))
     rules = load_rules()
-    reports = []
-    for cf in files:
-        for s in cf.servers:
-            reports.append((cf, s, evaluate(s, rules)))
-
+    reports = [(cf, s, evaluate(s, rules)) for cf in files for s in cf.servers]
     findings = [f for _, _, fs in reports for f in fs]
+    payload = build_report(files, reports, len(rules))
+
+    if args.out:
+        text = to_json(payload) if args.out.lower().endswith(".json") else to_markdown(payload)
+        written = write_report(args.out, text)
+        print(f"报告已写入 {written}")
+
     if args.json:
-        print(json.dumps({
-            "rules_loaded": len(rules),
-            "score": score(findings),
-            "files": [f.to_dict() for f in files],
-            "findings": [f.to_dict() for f in findings],
-        }, ensure_ascii=False, indent=2))
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
         if _empty(files):
             return 1
-        print(f"mcp-checkup v0.2 - 规则体检（{len(rules)} 条规则 · 离线 · 只读）")
+        print(f"mcp-checkup v{__version__} - 规则体检（{len(rules)} 条规则 · 离线 · 只读）")
         counts = {k: 0 for k in SEVERITY_ORDER}
         for f in findings:
             counts[f.severity] = counts.get(f.severity, 0) + 1
         summary = " / ".join(f"{v} {k}" for k, v in counts.items() if v)
-        print(f"发现 {summary or '0 findings'}")
+        print(f"发现 {summary or '0 findings'} · 结论：{payload['summary']['verdict']}")
         print(f"风险分 {score(findings)}（high=10 medium=4 low=1）\n")
         current = None
         for cf, s, fs in reports:
@@ -141,6 +141,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     scan = sub.choices["scan"]
     scan.add_argument("-v", "--verbose", action="store_true", help="print the detail line for each finding")
+    scan.add_argument("--out", help="write a report file (.md or .json) alongside the terminal output")
     scan.add_argument("--fail-on", choices=list(SEVERITY_ORDER), help="exit 1 if a finding of this severity or worse appears")
     return p
 
