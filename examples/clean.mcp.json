@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/srv/data"],
+      "env": { "LOG_LEVEL": "info" }
+    },
+    "weather": {
+      "type": "http",
+      "url": "https://mcp.example.com/weather",
+      "headers": { "Authorization": "Bearer <set-at-deploy-time>" }
+    }
+  }
+}
