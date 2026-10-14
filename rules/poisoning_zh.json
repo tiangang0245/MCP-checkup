@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "language": "zh",
+  "surface": "② 工具定义层（语义攻击）",
+  "rules": [
+    {
+      "id": "zh.override",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "忽略(?:掉)?(?:之前|以上|上述|先前|前面|所有|全部|任何)(?:的)?(?:之前|以上|上述|先前|前面|所有|全部|任何|既有|已有)?(?:指令|提示|规则|说明|设定|要求|约束)",
+      "title": "中文指令覆盖语句",
+      "detail": "工具描述要求模型忽略既有指令，是 Tool Poisoning 的核心句式。",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "zh.hide_from_user",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "(?:不要|勿|别)(?:向|对|跟)?(?:用户|使用者|客户)?(?:透露|告知|通知|提及|说明|暴露)|(?:对|向)(?:用户|客户)?(?:保密|隐瞒)",
+      "title": "要求对用户隐瞒",
+      "detail": "正常工具描述不会要求对使用者保密；这是诱导模型绕过 human-in-the-loop 的常见配套句式。",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "zh.exfiltrate",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "(?:发送|上传|提交|回传|外传|转发|POST)[^。\\n]{0,16}(?:密钥|令牌|口令|凭据|私钥|密码|api[_ -]?key|token)",
+      "title": "要求外传敏感凭据",
+      "detail": "描述里出现\"把密钥/令牌发出去\"类指令。",
+      "refs": ["docs/威胁模型.md#⑤"]
+    },
+    {
+      "id": "zh.read_sensitive",
+      "severity": "medium",
+      "scope": "any",
+      "pattern": "(?:读取|打开|列出|遍历|上传)[^。\\n]{0,16}(?:id_rsa|\\.ssh|\\.aws|\\.config|凭据|密钥|钱包)",
+      "title": "指向敏感路径/凭据的读取指令",
+      "detail": "与工具声明功能无关的敏感文件读取措辞。",
+      "refs": ["docs/威胁模型.md#⑤"]
+    },
+    {
+      "id": "zh.role_change",
+      "severity": "medium",
+      "scope": "any",
+      "pattern": "(?:你现在是|从现在起你(?:是|将)|假装(?:你)?是|扮演(?:一个)?(?:无限制|越权|管理员|root))",
+      "title": "角色改写语句",
+      "detail": "试图改变模型身份或权限设定。",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "zh.bypass",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "(?:绕过|跳过|忽略)[^。\\n]{0,8}(?:审批|确认|校验|验证|安全检查|权限|限制|沙箱)",
+      "title": "绕过安全控制语句",
+      "detail": "要求跳过确认/审批/沙箱等控制点。",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "zh.silent",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "(?:静默|悄悄|暗中)(?:执行|运行|调用|发送|读取)|不(?:询问|通知|提醒|告知)用户(?:直接|就)(?:执行|运行|调用)",
+      "title": "静默执行语句",
+      "detail": "要求不经用户确认直接执行动作。",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "zh.invalidate_prev",
+      "severity": "medium",
+      "scope": "any",
+      "pattern": "(?:以上|之前|上述)(?:的)?(?:内容|指令|对话|规则)(?:全部|都)?(?:无效|作废|不适用)",
+      "title": "作废既有上下文语句",
+      "detail": "与\"忽略指令\"同族，目标是让先前的安全约束失效。",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "zh.mandatory_call",
+      "severity": "low",
+      "scope": "any",
+      "pattern": "(?:务必|必须)(?:先)?(?:调用|执行|运行)[^。\\n]{0,24}(?:之前|前|首先)",
+      "title": "强制前置调用语句",
+      "detail": "诱导模型在回答前无条件先调用某工具（rug-pull 常用话术），单独出现可能是正常约束，需结合上下文。",
+      "refs": ["docs/威胁模型.md#②"]
+    }
+  ]
+}

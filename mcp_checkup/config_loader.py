@@ -20,6 +20,12 @@ REMOTE_TYPES = {"http", "https", "sse", "streamable-http", "streamable_http"}
 _SECRETISH = re.compile(r"(token|secret|password|passwd|apikey|api_key|api-key|credential|access_key|auth)", re.I)
 _ASSIGN = re.compile(r"(--?\w*(?:token|key|secret|password|passwd)\w*)([= ])(\S+)", re.I)
 
+# fields handled structurally; other string-valued fields are treated as authored
+# text (tool descriptions, notes...) and become scannable - unless the key itself
+# looks like a credential, in which case only the key name is kept
+NON_TEXT_KEYS = {"command", "args", "url", "uri", "type", "transport", "env", "headers",
+                 "disabled", "enabled", "cwd", "name", "timeout"}
+
 
 def looks_secret(name: str) -> bool:
     return bool(_SECRETISH.search(name))
@@ -42,6 +48,7 @@ class McpServer:
     header_keys: list[str] = field(default_factory=list)
     raw_keys: list[str] = field(default_factory=list)
     disabled: bool = False
+    texts: dict[str, str] = field(default_factory=dict)
     _private_env: dict[str, str] = field(default_factory=dict, repr=False)
 
     @property
@@ -55,6 +62,17 @@ class McpServer:
     def has_env_value(self, key: str) -> bool:
         return bool(self._private_env.get(key, "").strip())
 
+    def scannable(self) -> list[tuple[str, str]]:
+        """(field, text) pairs an author controls - what injection rules read."""
+        out: list[tuple[str, str]] = []
+        if self.command:
+            out.append(("command", self.command))
+        out += [(f"args[{i}]", a) for i, a in enumerate(self.args)]
+        if self.url:
+            out.append(("url", self.url))
+        out += sorted(self.texts.items())
+        return out
+
     def to_dict(self) -> dict:
         return {
             "name": self.name,
@@ -67,6 +85,7 @@ class McpServer:
             "header_keys": list(self.header_keys),
             "raw_keys": list(self.raw_keys),
             "disabled": self.disabled,
+            "texts": dict(self.texts),
         }
 
 
@@ -101,6 +120,8 @@ def _server_from(name: str, cfg, path: str) -> McpServer | None:
     url = str(cfg.get("url") or cfg.get("uri") or "")
     env = cfg.get("env") if isinstance(cfg.get("env"), dict) else {}
     headers = cfg.get("headers") if isinstance(cfg.get("headers"), dict) else {}
+    texts = {str(k): v for k, v in cfg.items()
+             if isinstance(v, str) and k not in NON_TEXT_KEYS and not looks_secret(k)}
     return McpServer(
         name=name,
         source=path,
@@ -112,6 +133,7 @@ def _server_from(name: str, cfg, path: str) -> McpServer | None:
         header_keys=[str(k) for k in headers],
         raw_keys=sorted(cfg.keys()),
         disabled=bool(cfg.get("disabled")) or cfg.get("enabled") is False,
+        texts=texts,
         _private_env={str(k): str(v) for k, v in env.items()},
     )
 

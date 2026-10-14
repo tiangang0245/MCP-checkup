@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "language": "any",
+  "surface": "②③⑥ 结构与技术性形态",
+  "rules": [
+    {
+      "id": "st.zero_width",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "[\\u200B\\u200C\\u200D\\u2060\\uFEFF\\u202A-\\u202E\\u2066-\\u2069]",
+      "title": "不可见控制字符",
+      "detail": "零宽 / bidi 字符常用来把注入文本藏进看起来正常的描述里，人眼读不出。",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "st.long_base64",
+      "severity": "medium",
+      "scope": "any",
+      "pattern": "[A-Za-z0-9+/]{80,}={0,2}",
+      "title": "超长 base64 样字符串",
+      "detail": "配置文本里出现大块 base64，通常是编码后的载荷。",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "st.pipe_to_shell",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "[|]\\s*(?:ba)?sh\\b",
+      "title": "管道进 shell",
+      "detail": "下载内容直接交给 shell 执行，是供应链 RCE 的典型形态。",
+      "refs": ["docs/威胁模型.md#③"]
+    },
+    {
+      "id": "st.dynamic_exec",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "\\b(?:eval|exec|execFile|spawn|system|vm\\.runInNewContext|child_process|subprocess|os\\.system|__import__)\\s*\\(",
+      "title": "动态执行入口",
+      "detail": "纯静态规则追不了动态执行路径——2026 年那次最严重的 MCP RCE 正是这样被漏检的。",
+      "refs": ["docs/威胁模型.md#③"]
+    },
+    {
+      "id": "st.powershell_encoded",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "(?:-enc\\b|-encodedcommand|powershell[^\\n]{0,24}\\s-c\\b)",
+      "title": "PowerShell 编码/内联执行",
+      "detail": "-EncodedCommand 与 -c 内联是 Windows 侧常见的无文件执行方式。",
+      "refs": ["docs/威胁模型.md#③"]
+    },
+    {
+      "id": "st.base64_decode",
+      "severity": "medium",
+      "scope": "any",
+      "pattern": "(?:base64\\s+(?:-d|--decode)|atob\\s*\\(|Buffer\\.from\\s*\\([^)]{0,40}base64)",
+      "title": "解码后再执行的前置动作",
+      "detail": "与动态执行组合时基本等价于混淆载荷。",
+      "refs": ["docs/威胁模型.md#③"]
+    },
+    {
+      "id": "st.wildcard_bind",
+      "severity": "medium",
+      "scope": "any",
+      "pattern": "(?:0\\.0\\.0\\.0|\\[::\\])(?::\\d+)?",
+      "title": "监听所有网卡",
+      "detail": "Inspector / harness 绑 0.0.0.0 且无鉴权，是本机 MCP 最常见的暴露面。",
+      "refs": ["docs/威胁模型.md#⑥"]
+    },
+    {
+      "id": "st.root_path",
+      "severity": "medium",
+      "scope": "any",
+      "pattern": "^/$|^[A-Za-z]:\\\\$",
+      "title": "文件系统权限挂在盘根",
+      "detail": "filesystem 类 server 直接给了 / 或整个盘，等于交出全盘读写。",
+      "refs": ["docs/威胁模型.md#③"]
+    },
+    {
+      "id": "st.home_dir",
+      "severity": "medium",
+      "scope": "any",
+      "pattern": "^/home/[^/]+$|^[A-Za-z]:\\\\Users\\\\[^\\\\]+$|^/Users/[^/]+$",
+      "title": "文件系统权限挂在用户主目录",
+      "detail": "主目录含 .ssh、.aws、浏览器配置等敏感内容。",
+      "refs": ["docs/威胁模型.md#③"]
+    },
+    {
+      "id": "st.dotenv",
+      "severity": "medium",
+      "scope": "any",
+      "pattern": "\\.env\\b",
+      "title": "指向 .env 凭据文件",
+      "detail": "工具能读写 .env 就意味着能拿到整套密钥。",
+      "refs": ["docs/威胁模型.md#⑤"]
+    },
+    {
+      "id": "st.exfil_endpoint",
+      "severity": "medium",
+      "scope": "any",
+      "pattern": "(?:pastebin\\.com|transfer\\.sh|webhook\\.site|discord\\.com/api/webhooks|requestbin|\\bngrok\\.)",
+      "title": "常见外带/临时接收端点",
+      "detail": "粘贴站、webhook 收件箱、内网穿透域名是数据外带的常用落点。",
+      "refs": ["docs/威胁模型.md#⑤"]
+    }
+  ]
+}
