@@ -110,4 +110,4 @@ PYTHONPATH=. python -m unittest discover -s tests -v      # 26 个用例
 
 ## License
 
-MIT
+[MIT](LICENSE) · Copyright © 2026 tiangang0245
