@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "language": "en",
+  "surface": "② 工具定义层（语义攻击）",
+  "rules": [
+    {
+      "id": "en.override",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "ignore\\s+(?:all\\s+|any\\s+|the\\s+)*(?:previous|prior|above|earlier)\\s+(?:instructions?|prompts?|rules?|messages?)",
+      "title": "Instruction-override wording",
+      "detail": "Tool description tells the model to drop its existing instructions.",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "en.hide_from_user",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "do\\s+not\\s+(?:tell|inform|notify|reveal|disclose|mention)[^.\\n]{0,40}user",
+      "title": "Ask to hide behaviour from the user",
+      "detail": "Legitimate tool descriptions do not need secrecy from the operator.",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "en.role_change",
+      "severity": "medium",
+      "scope": "any",
+      "pattern": "(?:you\\s+are\\s+now|new\\s+instructions?\\s*:|system\\s+prompt|act\\s+as\\s+(?:if|an?))",
+      "title": "Role / prompt redefinition",
+      "detail": "Attempts to redefine the assistant's identity or permission level.",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "en.exfiltrate",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "(?:send|upload|post|forward|leak)[^.\\n]{0,32}(?:api[_ -]?key|token|password|credential|secret)",
+      "title": "Instruction to move credentials",
+      "detail": "Description asks for credentials to be sent somewhere.",
+      "refs": ["docs/威胁模型.md#⑤"]
+    },
+    {
+      "id": "en.bypass",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "(?:bypass|disable|turn\\s+off)[^.\\n]{0,16}(?:approval|confirmation|safety|guardrail|logging|filter|sandbox)",
+      "title": "Safety-control bypass wording",
+      "detail": "Asks to switch off confirmation, logging or sandbox controls.",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "en.silent",
+      "severity": "high",
+      "scope": "any",
+      "pattern": "(?:silently|covertly)\\s+(?:execute|run|call|send|read)|without\\s+(?:asking|informing|notifying)\\s+the\\s+user",
+      "title": "Silent execution wording",
+      "detail": "Action to be taken without user confirmation.",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "en.prepend_call",
+      "severity": "low",
+      "scope": "any",
+      "pattern": "(?:before|prior\\s+to)\\s+(?:any|answering|responding|other)[^.\\n]{0,32}(?:first\\s+(?:call|run|read|execute)|call\\s+the)",
+      "title": "Mandatory pre-call instruction",
+      "detail": "Forces a tool call before anything else; common in rug-pull descriptions, but can be a legitimate ordering constraint.",
+      "refs": ["docs/威胁模型.md#②"]
+    },
+    {
+      "id": "en.internal_note",
+      "severity": "medium",
+      "scope": "any",
+      "pattern": "this\\s+(?:message|note|instruction|section)\\s+is\\s+(?:hidden|internal|not\\s+for\\s+the\\s+user)",
+      "title": "Hidden-instruction marker",
+      "detail": "Text that declares itself invisible to the user.",
+      "refs": ["docs/威胁模型.md#②"]
+    }
+  ]
+}
