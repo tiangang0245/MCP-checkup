@@ -1,5 +1,10 @@
 # SECURITY.md — 红线与披露
 
+> **TL;DR (EN)** — This tool is defensive: it reads config files offline and never executes, imports, or
+> connects to an MCP server. Research with it must target **your own** servers and a local range only;
+> publishing malicious samples to any registry is a crime. Vulnerability reports go through **coordinated
+> disclosure** — vendor first, write-up second.
+
 ## 本工具的边界
 
 - **只读**：只解析配置文件，不 import、不启动、不连接任何 MCP server。
