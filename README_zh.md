@@ -1,5 +1,9 @@
 # mcp-checkup
 
+[![tests](https://github.com/tiangang0245/MCP-checkup/actions/workflows/ci.yml/badge.svg)](https://github.com/tiangang0245/MCP-checkup/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![python](https://img.shields.io/badge/python-3.10%2B-informational)
+
 [English](README.md) · **简体中文**
 
 > 给**个人 Agent 用户**的 MCP 配置体检器：离线、只读、零依赖，外加"工具定义变了没有"的快照审查。
@@ -139,6 +143,7 @@ tests/           unittest（stdlib）：加载/脱敏 · 检出 · 零误报 · 
 examples/        clean.mcp.json · fixture_suspicious.mcp.json（惰性样例，载荷已占位符化）
 docs/            威胁模型.md · 示例报告.md · 示例变更审查.md
 SECURITY.md      红线与协调披露
+.github/workflows/ci.yml   每次 push / PR 跑 ubuntu+windows × 3 个 Python 版本
 ```
 
 ## 跑测试
@@ -148,6 +153,8 @@ PYTHONPATH=. python -m unittest discover -s tests -v      # 38 个用例
 ```
 
 其中 `FalsePositiveBarTest` 锁"干净配置零告警"，`SnapshotExecTest` 拿仓库自带的假 MCP server 走一遍真握手（不联网、不下第三方包），`NamingTest` 锁住"同秒两份快照不许互相覆盖"。
+
+CI（`.github/workflows/ci.yml`）在每次 push / PR 时跑 **ubuntu + windows × Python 3.10 / 3.11 / 3.12** 六个组合，之后再用 `--fail-on info` 对 `examples/clean.mcp.json` 复检一遍——哪条新规则把干净样例打脏，直接构建失败，而不是只在本地测试里红一下。
 
 ## 红线
 

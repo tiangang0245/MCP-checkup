@@ -1,5 +1,9 @@
 # mcp-checkup
 
+[![tests](https://github.com/tiangang0245/MCP-checkup/actions/workflows/ci.yml/badge.svg)](https://github.com/tiangang0245/MCP-checkup/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![python](https://img.shields.io/badge/python-3.10%2B-informational)
+
 **English** · [简体中文](README_zh.md)
 
 > An offline, read-only, zero-dependency config checkup for people who **use** MCP servers — plus a snapshot review that tells you whether a server's tool definitions changed under you.
@@ -133,6 +137,7 @@ tests/           stdlib unittest: loading / redaction / detection / false-positi
 examples/        clean.mcp.json · fixture_suspicious.mcp.json (inert payloads)
 docs/            威胁模型.md · 示例报告.md (sample report) · 示例变更审查.md (sample change review)
 SECURITY.md      red lines and coordinated disclosure
+.github/workflows/ci.yml   ubuntu + windows × Python 3.10 / 3.11 / 3.12 on every push
 ```
 
 ## Tests
@@ -142,6 +147,8 @@ PYTHONPATH=. python -m unittest discover -s tests -v      # 38 cases, no pytest 
 ```
 
 `FalsePositiveBarTest` pins the "clean config, zero findings" bar. `SnapshotExecTest` runs a real stdio handshake against the fake MCP server committed in `tests/` — no network, no third-party package. `NamingTest` keeps two captures in the same second from overwriting each other.
+
+CI (`.github/workflows/ci.yml`) runs the suite on every push and PR across **ubuntu + windows × Python 3.10 / 3.11 / 3.12**, then re-runs the checkup on `examples/clean.mcp.json` with `--fail-on info` — a rule that dirties the clean sample breaks the build, not just a local test.
 
 ## Red lines
 
