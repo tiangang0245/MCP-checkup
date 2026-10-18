@@ -88,9 +88,9 @@ Claude Desktop、Cursor、Windsurf、VS Code、Cline、Qoder、Zed、Gemini CLI�
 
 | 文件 | 覆盖攻击面 | 代表规则 |
 |---|---|---|
-| [`rules/poisoning_zh.json`](rules/poisoning_zh.json)（9） | ② 工具定义语义 | `zh.override` 忽略之前的所有指令 · `zh.hide_from_user` 对用户隐瞒 · `zh.exfiltrate` 外传密钥 · `zh.bypass` 绕过审批 · `zh.silent` 静默执行 · `zh.role_change` 角色改写 · `zh.invalidate_prev` 作废上下文 · `zh.read_sensitive` 指向敏感路径 · `zh.mandatory_call` 强制前置调用 |
-| [`rules/poisoning_en.json`](rules/poisoning_en.json)（8） | ② 同上，英文语料 | `en.override` · `en.hide_from_user` · `en.exfiltrate` · `en.bypass` · `en.silent` · `en.role_change` · `en.prepend_call` · `en.internal_note` |
-| [`rules/structural.json`](rules/structural.json)（11） | ②③⑤ | `st.zero_width` 不可见字符 · `st.long_base64` · `st.pipe_to_shell` · `st.dynamic_exec` · `st.powershell_encoded` · `st.base64_decode` · `st.wildcard_bind` 0.0.0.0 · `st.root_path` / `st.home_dir` 权限过宽 · `st.dotenv` · `st.exfil_endpoint` |
+| [`rules/poisoning_zh.json`](rules/poisoning_zh.json)（9） | ②⑤ 工具定义语义 | `zh.override` 忽略之前的所有指令 · `zh.hide_from_user` 对用户隐瞒 · `zh.exfiltrate` 外传密钥 · `zh.bypass` 绕过审批 · `zh.silent` 静默执行 · `zh.role_change` 角色改写 · `zh.invalidate_prev` 作废上下文 · `zh.read_sensitive` 指向敏感路径 · `zh.mandatory_call` 强制前置调用 |
+| [`rules/poisoning_en.json`](rules/poisoning_en.json)（8） | ②⑤ 同上，英文语料 | `en.override` · `en.hide_from_user` · `en.exfiltrate` · `en.bypass` · `en.silent` · `en.role_change` · `en.prepend_call` · `en.internal_note` |
+| [`rules/structural.json`](rules/structural.json)（11） | ②③⑤⑥ | `st.zero_width` 不可见字符 · `st.long_base64` · `st.pipe_to_shell` · `st.dynamic_exec` · `st.powershell_encoded` · `st.base64_decode` · `st.wildcard_bind` 0.0.0.0 · `st.root_path` / `st.home_dir` 权限过宽 · `st.dotenv` · `st.exfil_endpoint` |
 | 引擎内置（`rules.py`） | ①④⑥ | `st.secret_in_config`（键名像凭据**且已填值**才报）· `st.plaintext_http` · `st.remote_no_auth` · `st.typosquat`（与官方包编辑距离 ≤2）· `st.unknown_official_scope` |
 
 扫描范围只含配置作者能写的文本（`command` / `args[i]` / `url` / 描述类字段）；**env 与 headers 的值永不进入匹配与输出**。`localhost` 与 `127.0.0.1` 不报明文 http / 无鉴权，免得把本地开发的常态打成一片告警。
@@ -131,9 +131,11 @@ Claude Desktop、Cursor、Windsurf、VS Code、Cline、Qoder、Zed、Gemini CLI�
 mcp_checkup/     clients.py（路径白名单）· config_loader.py（归一化+脱敏）
                  rules.py（引擎+内置语义规则）· known_names.py（官方包清单）
                  report.py（体检报告）· jcs.py（规范化 JSON+指纹）
-                 snapshot.py（stdio 握手抓工具定义）· diff_tools.py（变更分类）· cli.py
+                 snapshot.py（stdio 握手抓工具定义）· diff_tools.py（变更分类）
+                 cli.py · __main__.py（`python -m` 入口）
 rules/           poisoning_zh.json · poisoning_en.json · structural.json   ← 加规则改这里
 tests/           unittest（stdlib）：加载/脱敏 · 检出 · 零误报 · 报告 · 快照与 diff
+                 fake_mcp_server.py（本地假 server，测试靶子；不联网）
 examples/        clean.mcp.json · fixture_suspicious.mcp.json（惰性样例，载荷已占位符化）
 docs/            威胁模型.md · 示例报告.md · 示例变更审查.md
 SECURITY.md      红线与协调披露

@@ -90,10 +90,10 @@ Rules are data, not code: drop an entry into `rules/*.json` and it takes effect 
 
 | File | Surface | Representative rules |
 |---|---|---|
-| [`rules/poisoning_zh.json`](rules/poisoning_zh.json) (9) | ② tool definitions | `zh.override` instruction-override in Chinese · `zh.hide_from_user` · `zh.exfiltrate` · `zh.bypass` · `zh.silent` · `zh.role_change` · `zh.invalidate_prev` · `zh.read_sensitive` · `zh.mandatory_call` |
-| [`rules/poisoning_en.json`](rules/poisoning_en.json) (8) | ② same, English corpora | `en.override` · `en.hide_from_user` · `en.exfiltrate` · `en.bypass` · `en.silent` · `en.role_change` · `en.prepend_call` · `en.internal_note` |
-| [`rules/structural.json`](rules/structural.json) (11) | ②③⑤ | `st.zero_width` invisible/bidi chars · `st.long_base64` · `st.pipe_to_shell` · `st.dynamic_exec` · `st.powershell_encoded` · `st.base64_decode` · `st.wildcard_bind` · `st.root_path` / `st.home_dir` over-broad grants · `st.dotenv` · `st.exfil_endpoint` |
-| built into the engine | ①④ | `st.secret_in_config` (fires only when the key looks like a credential **and** has a value) · `st.plaintext_http` · `st.remote_no_auth` · `st.typosquat` (edit distance ≤2 from an official package) · `st.unknown_official_scope` |
+| [`rules/poisoning_zh.json`](rules/poisoning_zh.json) (9) | ②⑤ tool definitions | `zh.override` instruction-override in Chinese · `zh.hide_from_user` · `zh.exfiltrate` · `zh.bypass` · `zh.silent` · `zh.role_change` · `zh.invalidate_prev` · `zh.read_sensitive` · `zh.mandatory_call` |
+| [`rules/poisoning_en.json`](rules/poisoning_en.json) (8) | ②⑤ same, English corpora | `en.override` · `en.hide_from_user` · `en.exfiltrate` · `en.bypass` · `en.silent` · `en.role_change` · `en.prepend_call` · `en.internal_note` |
+| [`rules/structural.json`](rules/structural.json) (11) | ②③⑤⑥ | `st.zero_width` invisible/bidi chars · `st.long_base64` · `st.pipe_to_shell` · `st.dynamic_exec` · `st.powershell_encoded` · `st.base64_decode` · `st.wildcard_bind` · `st.root_path` / `st.home_dir` over-broad grants · `st.dotenv` · `st.exfil_endpoint` |
+| built into the engine | ①④⑥ | `st.secret_in_config` (fires only when the key looks like a credential **and** has a value) · `st.plaintext_http` · `st.remote_no_auth` · `st.typosquat` (edit distance ≤2 from an official package) · `st.unknown_official_scope` |
 
 Scanned scope is limited to text the config author controls — `command`, `args[i]`, `url`, description-style fields. `localhost` and `127.0.0.1` are exempt from the plaintext-HTTP and no-auth checks, so ordinary local development does not light up the report.
 
@@ -125,9 +125,11 @@ Static first, dynamic later — deliberately. Pure static rules were proven unab
 mcp_checkup/     clients.py (path allowlist) · config_loader.py (normalise + redact)
                  rules.py (engine + built-in checks) · known_names.py
                  report.py · jcs.py (canonical JSON + fingerprint)
-                 snapshot.py (stdio handshake) · diff_tools.py (change triage) · cli.py
+                 snapshot.py (stdio handshake) · diff_tools.py (change triage)
+                 cli.py · __main__.py (`python -m` entry point)
 rules/           poisoning_zh.json · poisoning_en.json · structural.json   <- add rules here
 tests/           stdlib unittest: loading / redaction / detection / false-positive bar / report / snapshot+diff
+                 fake_mcp_server.py (local stub server the snapshot tests talk to - no network)
 examples/        clean.mcp.json · fixture_suspicious.mcp.json (inert payloads)
 docs/            威胁模型.md · 示例报告.md (sample report) · 示例变更审查.md (sample change review)
 SECURITY.md      red lines and coordinated disclosure
