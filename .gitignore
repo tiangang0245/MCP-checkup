@@ -11,3 +11,4 @@ build/
 .vscode/
 report*.json
 report*.md
+snapshots/

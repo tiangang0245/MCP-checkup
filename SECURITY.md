@@ -1,15 +1,18 @@
 # SECURITY.md — 红线与披露
 
-> **TL;DR (EN)** — This tool is defensive: it reads config files offline and never executes, imports, or
-> connects to an MCP server. Research with it must target **your own** servers and a local range only;
-> publishing malicious samples to any registry is a crime. Vulnerability reports go through **coordinated
-> disclosure** — vendor first, write-up second.
+> **TL;DR (EN)** — This tool is defensive: it reads config files offline and does not execute, import, or
+> connect to MCP servers. The one exception is `snapshot`, which starts a server to read its tool
+> definitions and therefore requires an explicit `--allow-exec`; use it only for servers you already run
+> in your client. Research must target **your own** servers and a local range only; publishing malicious
+> samples to any registry is a crime. Vulnerability reports go through **coordinated disclosure** — vendor
+> first, write-up second.
 
 ## 本工具的边界
 
 - **只读**：只解析配置文件，不 import、不启动、不连接任何 MCP server。
+- **唯一例外**：`snapshot` 为了读工具定义会启动该 server 进程，因此默认拒绝执行，必须显式加 `--allow-exec`，且只支持 stdio。请只对**你本来就在客户端里每天启动**的 server 使用它——它不新增执行面，但确实是一次执行。
 - **离线**：无网络请求。typosquat 检测用内置名单与编辑距离，不查注册表。
-- **不收集**：不把配置内容写到仓库外的任何地方；`--json` 输出不含 env / headers 的值。
+- **不收集**：不把配置内容写到仓库外的任何地方；`--json` 输出与快照文件都不含 env / headers 的值（有测试验证）。
 
 ## 使用本工具做研究时的红线
 

@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 
 from . import __version__
 from .clients import CLIENTS
 from .config_loader import ConfigFile, McpServer, discover, redact
+from .diff_tools import compare, summarise
+from .diff_tools import to_markdown as diff_markdown
 from .rules import SEVERITY_ORDER, evaluate, load_rules, score
+from .snapshot import capture, latest_for, load, save
 from .report import build as build_report, to_json, to_markdown, write as write_report
 
 SEV_TAG = {"high": "HIGH  ", "medium": "MEDIUM", "low": "LOW   ", "info": "INFO  "}
@@ -126,6 +130,70 @@ def cmd_scan(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_snapshot(args: argparse.Namespace) -> int:
+    if not args.allow_exec:
+        print("snapshot has to start the server to read its tool definitions.")
+        print("that is the one thing this repo otherwise refuses to do, so it is opt-in:")
+        print("  add --allow-exec  (only for a server you already run in your client)")
+        return 2
+    wanted = {s.name: s for cf in discover(project=args.project, client=args.client,
+                                           extra=tuple(args.config or ())) for s in cf.servers}
+    if args.server not in wanted:
+        print(f"error: server '{args.server}' not found. known: " + ", ".join(sorted(wanted)))
+        return 2
+    server = wanted[args.server]
+    if server.transport != "stdio":
+        print(f"error: {server.transport} servers are not supported yet (needs auth handling).")
+        return 2
+    previous = latest_for(args.dir, server.name)
+    try:
+        snap = capture(server, timeout=args.timeout)
+    except Exception as e:                                    # noqa: BLE001 - report any handshake failure
+        print(f"error: 抓取失败 - {e}")
+        return 1
+    path = save(snap, args.dir)
+    print(f"snapshot  {path}")
+    print(f"  tools {snap['tool_count']}  fingerprint {snap['fingerprint']}")
+    if not previous:
+        print("  这是该 server 的第一份快照，已作为基线。")
+        return 0
+    changes = compare(load(previous), snap, load_rules())
+    print(f"  与上一份（{os.path.basename(previous)}）相比：")
+    _print_changes(changes)
+    return 0
+
+
+def _print_changes(changes) -> None:
+    if not changes:
+        print("    工具定义无变化。")
+        return
+    tag = {"high": "HIGH  ", "medium": "MEDIUM", "low": "LOW   ", "info": "INFO  "}
+    for c in changes:
+        extra = f"  {','.join(c.rules)}" if c.rules else ""
+        print(f"    {tag.get(c.severity, c.severity)}  {c.tool:<24} {c.kind:<22} {c.detail}{extra}")
+
+
+def cmd_diff(args: argparse.Namespace) -> int:
+    old, new = load(args.old), load(args.new)
+    changes = compare(old, new, load_rules())
+    counts = summarise(changes)
+    if args.json:
+        print(json.dumps({"old": old.get("captured_at"), "new": new.get("captured_at"),
+                          "counts": counts, "changes": [c.to_dict() for c in changes]},
+                         ensure_ascii=False, indent=2))
+    else:
+        print(f"diff - {old.get('server')}  {old.get('captured_at')} -> {new.get('captured_at')}")
+        print(f"变化 {len(changes)} 项（high {counts['high']} / medium {counts['medium']} / low {counts['low']}）\n")
+        _print_changes(changes)
+    if args.out:
+        written = write_report(args.out, diff_markdown(old, new, changes))
+        print(f"\n报告已写入 {written}")
+    if args.fail_on:
+        if any(SEVERITY_ORDER.get(c.severity, 9) <= SEVERITY_ORDER[args.fail_on] for c in changes):
+            return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="mcp-checkup", description="offline MCP config checkup for individual agent users")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -143,6 +211,24 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("-v", "--verbose", action="store_true", help="print the detail line for each finding")
     scan.add_argument("--out", help="write a report file (.md or .json) alongside the terminal output")
     scan.add_argument("--fail-on", choices=list(SEVERITY_ORDER), help="exit 1 if a finding of this severity or worse appears")
+
+    snap = sub.add_parser("snapshot", help="record a stdio server's tool definitions (starts the process - opt-in)")
+    snap.add_argument("--server", required=True, help="server name as written in the config")
+    snap.add_argument("--client", help="restrict discovery to one client")
+    snap.add_argument("--project", help="project root to look in")
+    snap.add_argument("--config", action="append", help="extra config file (repeatable)")
+    snap.add_argument("--dir", default="snapshots", help="where snapshots are stored (default: ./snapshots)")
+    snap.add_argument("--timeout", type=float, default=20.0, help="handshake timeout in seconds")
+    snap.add_argument("--allow-exec", action="store_true", help="acknowledge that the server process will be started")
+    snap.set_defaults(func=cmd_snapshot)
+
+    dif = sub.add_parser("diff", help="compare two snapshots and split cosmetic from material changes")
+    dif.add_argument("old", help="baseline snapshot .json")
+    dif.add_argument("new", help="newer snapshot .json")
+    dif.add_argument("--json", action="store_true", help="JSON output")
+    dif.add_argument("--out", help="write a Markdown report")
+    dif.add_argument("--fail-on", choices=list(SEVERITY_ORDER), help="exit 1 on a change of this severity or worse")
+    dif.set_defaults(func=cmd_diff)
     return p
 
 
