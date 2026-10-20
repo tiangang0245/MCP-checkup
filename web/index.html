@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mcp-checkup · 配置体检面板</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <h1>mcp-checkup<span class="sub">个人侧 MCP 配置体检</span></h1>
+  <div class="meta" id="meta">载入中…</div>
+</header>
+
+<section class="toolbar">
+  <input id="cfg" type="text" placeholder="可选：指定某个 mcp.json 路径（.json）后重新体检" spellcheck="false">
+  <button id="run" class="primary">重新体检</button>
+  <span class="filters" id="filters">
+    <label><input type="checkbox" data-sev="high" checked>高危</label>
+    <label><input type="checkbox" data-sev="medium" checked>中危</label>
+    <label><input type="checkbox" data-sev="low" checked>低危</label>
+    <label><input type="checkbox" data-sev="info" checked>提示</label>
+  </span>
+  <nav class="tabs">
+    <button data-tab="scan" class="on">体检结果</button>
+    <button data-tab="rules">规则清单</button>
+  </nav>
+</section>
+
+<section class="summary" id="summary"></section>
+
+<main>
+  <div class="panel" id="tab-scan">
+    <aside>
+      <h2>发现的配置</h2>
+      <ul id="files"></ul>
+      <h2>服务器</h2>
+      <ul id="nav"></ul>
+    </aside>
+    <div id="servers"></div>
+  </div>
+
+  <div class="panel single" id="tab-rules" hidden>
+    <div id="rules"></div>
+  </div>
+</main>
+
+<footer>
+  只监听 127.0.0.1 · 页面不加载任何外部资源 · 凭据的值不进入接口与渲染 · 静态检测，未命中不等于安全
+</footer>
+
+<script src="/app.js"></script>
+</body>
+</html>

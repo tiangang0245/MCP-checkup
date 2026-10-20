@@ -27,12 +27,13 @@ python -m mcp_checkup scan --fail-on high        # 出现 high 就退出码 1（
 
 python -m mcp_checkup snapshot --server demo-fs --allow-exec   # 记录工具定义基线（会启动该 server）
 python -m mcp_checkup diff old.json new.json --out 变更.md      # 离线比对两份快照
+python -m mcp_checkup serve                                    # 可选：本机网页面板，只在 127.0.0.1 上
 ```
 
 对 `examples/fixture_suspicious.mcp.json` 的真实输出（规则标题本来就是双语的：中文语料规则报中文、英文语料规则报英文）：
 
 ```
-mcp-checkup v0.4.0 - 规则体检（28 条规则 · 离线 · 只读）
+mcp-checkup v0.4.1 - 规则体检（28 条规则 · 离线 · 只读）
 发现 4 high / 1 medium · 结论：存在高危项，建议先清
 风险分 44（high=10 medium=4 low=1）
 
@@ -73,6 +74,30 @@ python -m mcp_checkup snapshot --server demo-fs --allow-exec --dir snapshots
 | 新增工具 / 新增必填参数 / 参数类型变化 | 能力扩张 | **高** |
 | 新增可选参数 / 移除参数 / 枚举放宽 | 需要确认 | 中 |
 
+## 可选网页面板（不习惯就直接删）
+
+终端报告够用，但"哪个 server 命中了什么、想只盯高危看一遍"这种事，点两下比滚动快：
+
+```bash
+python -m mcp_checkup serve                  # http://127.0.0.1:8765
+python -m mcp_checkup serve --port 8766      # 端口被占用时
+```
+
+面板做的事和 `scan` 完全一样——它调的还是同一套 `discover()` / `evaluate()`，**规则没有在 JS 里重写一遍**。左侧是发现的配置与 server 导航，右侧按 server 分组列命中项（含 excerpt 与"为什么这条要报"），顶部四个勾选框过滤级别，第二个标签页是 28 条规则清单。
+
+它的边界，和它守规矩的方式：
+
+| 约束 | 含义 |
+|---|---|
+| 只监听 loopback | `--host 0.0.0.0` 直接报错退出，不是警告 |
+| 认 Host 头 | Host 不是 `127.0.0.1` / `localhost` / `::1` 就 403——挡 DNS rebinding |
+| 静态路由是固定表 | 只有 `/`、`/app.js`、`/style.css` 三个条目，用户路径永远不参与拼接 |
+| 不加载外部资源 | 无 CDN、无 web font、无统计脚本；断网也能开 |
+| 凭据值不出现 | 接口返回的就是 `to_dict()`，本来就只有键名 |
+| 不写文件 | 面板不产生任何落盘副作用；要文件报告请用 `scan --out` |
+
+**删掉它**：`git rm -r web mcp_checkup/web.py tests/test_web.py`。核心模块一行都不 import 它，CLI 用"能 import 才注册 `serve`"的方式挂它，所以其余四个命令和其余测试全绿——这几条是有测试断言的（`DeletableModuleTest`），不是宣传语。
+
 ## 支持的客户端
 
 Claude Desktop、Cursor、Windsurf、VS Code、Cline、Qoder、Zed、Gemini CLI、opencode、Continue，外加项目级文件（`.mcp.json`、`.cursor/mcp.json`、`.vscode/mcp.json`）。路径是 [`mcp_checkup/clients.py`](mcp_checkup/clients.py) 里的**固定白名单**，不做全盘遍历——不会去读你没让它读的文件。
@@ -81,7 +106,7 @@ Claude Desktop、Cursor、Windsurf、VS Code、Cline、Qoder、Zed、Gemini CLI�
 
 | 约束 | 含义 |
 |---|---|
-| **离线** | 不发起任何网络请求，不查询注册表 |
+| **离线** | 不发起任何网络请求，不查询注册表；`serve` 也只是在 127.0.0.1 上开一个只读面板，不出本机 |
 | **只读** | 体检路径只读配置文件；`snapshot` 是唯一会启动进程的命令，需 `--allow-exec` 显式确认 |
 | **零依赖** | 只用 Python 标准库（3.10+），`git clone` 即可跑 |
 | **不泄密** | env / headers 的**值**不进入数据结构、报告与快照，只保留键名 |
@@ -125,6 +150,7 @@ Claude Desktop、Cursor、Windsurf、VS Code、Cline、Qoder、Zed、Gemini CLI�
 | v0.2 | 规则引擎：配置卫生 + 中·英工具描述投毒检测（28 条） | 已完成 |
 | v0.3 | 报告层：Markdown / JSON 报告落盘 + 结论与边界声明 | 已完成 |
 | v0.4 | rug-pull 审查：JCS 指纹快照 + 离线 diff + 实质/外观分类 | 已完成 |
+| v0.4.1 | 可选网页面板：本机 loopback 上的体检结果视图，不习惯可整体删除 | 已完成 |
 | v0.5 | 动态检测：本地靶场 + eval / exec / 反射行为探测 | 计划 |
 
 先静态后动态是刻意的：纯静态规则已被证明追不上 2026 年那次最严重 MCP RCE 的运行时路径，动态检测才是终局；但它需要靶场，工程量大一个量级，所以排在后面。
@@ -137,8 +163,10 @@ mcp_checkup/     clients.py（路径白名单）· config_loader.py（归一化+
                  report.py（体检报告）· jcs.py（规范化 JSON+指纹）
                  snapshot.py（stdio 握手抓工具定义）· diff_tools.py（变更分类）
                  cli.py · __main__.py（`python -m` 入口）
+                 web.py（可选面板后端，删掉不影响其余命令）
+web/             index.html · app.js · style.css   ← 面板的静态文件，原生 JS，无外部资源
 rules/           poisoning_zh.json · poisoning_en.json · structural.json   ← 加规则改这里
-tests/           unittest（stdlib）：加载/脱敏 · 检出 · 零误报 · 报告 · 快照与 diff
+tests/           unittest（stdlib）：加载/脱敏 · 检出 · 零误报 · 报告 · 快照与 diff · 面板
                  fake_mcp_server.py（本地假 server，测试靶子；不联网）
 examples/        clean.mcp.json · fixture_suspicious.mcp.json（惰性样例，载荷已占位符化）
 docs/            威胁模型.md · 示例报告.md · 示例变更审查.md
@@ -149,10 +177,10 @@ SECURITY.md      红线与协调披露
 ## 跑测试
 
 ```bash
-PYTHONPATH=. python -m unittest discover -s tests -v      # 38 个用例
+PYTHONPATH=. python -m unittest discover -s tests -v      # 53 个用例
 ```
 
-其中 `FalsePositiveBarTest` 锁"干净配置零告警"，`SnapshotExecTest` 拿仓库自带的假 MCP server 走一遍真握手（不联网、不下第三方包），`NamingTest` 锁住"同秒两份快照不许互相覆盖"。
+其中 `FalsePositiveBarTest` 锁"干净配置零告警"，`SnapshotExecTest` 拿仓库自带的假 MCP server 走一遍真握手（不联网、不下第三方包），`NamingTest` 锁住"同秒两份快照不许互相覆盖"，`DeletableModuleTest` 锁住"删掉 web.py 之后其余命令照常工作"。`tests/test_web.py` 会真起一个 loopback 监听器打真请求，所以没有 IPv6 的机器上会 skip 一条。
 
 CI（`.github/workflows/ci.yml`）在每次 push / PR 时跑 **ubuntu + windows × Python 3.10 / 3.11 / 3.12** 六个组合，之后再用 `--fail-on info` 对 `examples/clean.mcp.json` 复检一遍——哪条新规则把干净样例打脏，直接构建失败，而不是只在本地测试里红一下。
 

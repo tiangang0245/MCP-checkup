@@ -29,12 +29,13 @@ python -m mcp_checkup scan --fail-on high        # exit 1 on a high finding - re
 
 python -m mcp_checkup snapshot --server demo-fs --allow-exec   # record a tool-definition baseline
 python -m mcp_checkup diff old.json new.json --out changes.md  # compare two snapshots, offline
+python -m mcp_checkup serve                                    # optional dashboard, 127.0.0.1 only
 ```
 
 Sample output against `examples/fixture_suspicious.mcp.json` (rule titles are bilingual by design — Chinese corpora rules report in Chinese, English ones in English):
 
 ```
-mcp-checkup v0.4.0 - 规则体检（28 条规则 · 离线 · 只读）
+mcp-checkup v0.4.1 - 规则体检（28 条规则 · 离线 · 只读）
 发现 4 high / 1 medium · 结论：存在高危项，建议先清
 风险分 44（high=10 medium=4 low=1）
 
@@ -75,6 +76,28 @@ The classification is the point:
 | New tool / new required parameter / parameter type change | capability growth | **high** |
 | New optional parameter / removed parameter / widened enum | needs a human look | medium |
 
+## Optional dashboard (delete it if you do not want it)
+
+A terminal report is fine until you want to answer "which server hit what, high severity only" by clicking instead of scrolling:
+
+```bash
+python -m mcp_checkup serve                  # http://127.0.0.1:8765
+python -m mcp_checkup serve --port 8766      # if the port is taken
+```
+
+The panel calls the same `discover()` / `evaluate()` the CLI uses — **the rules are not reimplemented in JavaScript**. Left column: configs found and a per-server index. Main area: findings grouped by server, with the excerpt and the reason each rule fired. Four checkboxes filter by severity; the second tab is the full 28-rule inventory.
+
+| Constraint | What it means in practice |
+|---|---|
+| Loopback only | `--host 0.0.0.0` exits with an error, it does not warn |
+| Host header is checked | anything other than `127.0.0.1` / `localhost` / `::1` gets 403 — this is the DNS-rebinding defence |
+| Static routes are a fixed table | only `/`, `/app.js`, `/style.css`; request paths are never joined onto a directory |
+| No external assets | no CDN, no web fonts, no analytics; it works with networking disabled |
+| No secret values | the API returns `to_dict()`, which already keeps env/header key names only |
+| No writes | the panel has no side effects on disk; use `scan --out` for a file report |
+
+**To remove it**: `git rm -r web mcp_checkup/web.py tests/test_web.py`. No core module imports the panel and the CLI registers `serve` only when the import succeeds, so the other four commands and every remaining test keep working. That claim is asserted by `DeletableModuleTest`, not by a sentence in a README.
+
 ## Supported clients
 
 Claude Desktop, Cursor, Windsurf, VS Code, Cline, Qoder, Zed, Gemini CLI, opencode, Continue — plus project-level files (`.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`). The path list is a fixed allowlist in [`mcp_checkup/clients.py`](mcp_checkup/clients.py): no filesystem walks, so nothing gets read that you did not ask for.
@@ -83,7 +106,7 @@ Claude Desktop, Cursor, Windsurf, VS Code, Cline, Qoder, Zed, Gemini CLI, openco
 
 | Constraint | What it means in practice |
 |---|---|
-| **Offline** | No network calls, no registry lookups |
+| **Offline** | No network calls, no registry lookups; `serve` is a read-only view bound to 127.0.0.1, so it does not make the tool networked |
 | **Read-only** | The checkup path only parses files; `snapshot` is the one command that starts a process, and it needs `--allow-exec` |
 | **Zero dependencies** | Python standard library only (3.10+); `git clone` and run |
 | **No secret leakage** | `env` / header **values** never enter the data model, reports, or snapshots — only key names are kept |
@@ -119,6 +142,7 @@ Read this before trusting a clean scan:
 | v0.2 | Rule engine: hygiene + zh/en tool-description poisoning (28 rules) | done |
 | v0.3 | Report layer: Markdown / JSON output with verdict and limits | done |
 | v0.4 | Rug-pull review: JCS fingerprint snapshots + offline diff, cosmetic vs material | done |
+| v0.4.1 | Optional web dashboard: loopback-only view of the same findings, deletable as a unit | done |
 | v0.5 | Dynamic detection: local range + eval / exec / reflection probing | planned |
 
 Static first, dynamic later — deliberately. Pure static rules were proven unable to follow the runtime path of 2026's most severe MCP RCE, so dynamic checks are the real endgame; they just need a range, which is an order of magnitude more work.
@@ -131,8 +155,10 @@ mcp_checkup/     clients.py (path allowlist) · config_loader.py (normalise + re
                  report.py · jcs.py (canonical JSON + fingerprint)
                  snapshot.py (stdio handshake) · diff_tools.py (change triage)
                  cli.py · __main__.py (`python -m` entry point)
+                 web.py (optional dashboard backend - delete it and the rest still works)
+web/             index.html · app.js · style.css   <- dashboard assets, vanilla JS, no external requests
 rules/           poisoning_zh.json · poisoning_en.json · structural.json   <- add rules here
-tests/           stdlib unittest: loading / redaction / detection / false-positive bar / report / snapshot+diff
+tests/           stdlib unittest: loading / redaction / detection / false-positive bar / report / snapshot+diff / dashboard
                  fake_mcp_server.py (local stub server the snapshot tests talk to - no network)
 examples/        clean.mcp.json · fixture_suspicious.mcp.json (inert payloads)
 docs/            威胁模型.md · 示例报告.md (sample report) · 示例变更审查.md (sample change review)
@@ -143,10 +169,10 @@ SECURITY.md      red lines and coordinated disclosure
 ## Tests
 
 ```bash
-PYTHONPATH=. python -m unittest discover -s tests -v      # 38 cases, no pytest needed
+PYTHONPATH=. python -m unittest discover -s tests -v      # 53 cases, no pytest needed
 ```
 
-`FalsePositiveBarTest` pins the "clean config, zero findings" bar. `SnapshotExecTest` runs a real stdio handshake against the fake MCP server committed in `tests/` — no network, no third-party package. `NamingTest` keeps two captures in the same second from overwriting each other.
+`FalsePositiveBarTest` pins the "clean config, zero findings" bar. `SnapshotExecTest` runs a real stdio handshake against the fake MCP server committed in `tests/` — no network, no third-party package. `NamingTest` keeps two captures in the same second from overwriting each other. `DeletableModuleTest` asserts the dashboard is genuinely optional; `tests/test_web.py` starts a real loopback listener and sends actual requests at it, so the binding rule, the Host check and the redaction are verified end-to-end rather than by reading the code (one case skips on machines without an IPv6 loopback).
 
 CI (`.github/workflows/ci.yml`) runs the suite on every push and PR across **ubuntu + windows × Python 3.10 / 3.11 / 3.12**, then re-runs the checkup on `examples/clean.mcp.json` with `--fail-on info` — a rule that dirties the clean sample breaks the build, not just a local test.
 

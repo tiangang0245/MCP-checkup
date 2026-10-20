@@ -16,6 +16,12 @@ from .rules import SEVERITY_ORDER, evaluate, load_rules, score
 from .snapshot import capture, latest_for, load, save
 from .report import build as build_report, to_json, to_markdown, write as write_report
 
+# The dashboard is an optional module: `serve` only exists while web.py is present.
+try:
+    from . import web as _web
+except ImportError:
+    _web = None
+
 SEV_TAG = {"high": "HIGH  ", "medium": "MEDIUM", "low": "LOW   ", "info": "INFO  "}
 
 
@@ -194,6 +200,15 @@ def cmd_diff(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    assert _web is not None                        # parser only registers this when web.py exists
+    if not _web.is_free(args.host, args.port):
+        print(f"error: port {args.port} is already in use. try --port 8766")
+        return 2
+    _web.serve(host=args.host, port=args.port)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="mcp-checkup", description="offline MCP config checkup for individual agent users")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -229,6 +244,12 @@ def build_parser() -> argparse.ArgumentParser:
     dif.add_argument("--out", help="write a Markdown report")
     dif.add_argument("--fail-on", choices=list(SEVERITY_ORDER), help="exit 1 on a change of this severity or worse")
     dif.set_defaults(func=cmd_diff)
+
+    if _web is not None:
+        srv = sub.add_parser("serve", help="optional local dashboard (loopback only; delete mcp_checkup/web.py + web/ to drop it)")
+        srv.add_argument("--host", default="127.0.0.1", help="must be a loopback address")
+        srv.add_argument("--port", type=int, default=8765)
+        srv.set_defaults(func=cmd_serve)
     return p
 
 
